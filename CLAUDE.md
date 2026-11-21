@@ -11,11 +11,13 @@ App học tiếng Trung giao tiếp (Phổ thông Đại Lục, zh-CN) cho ngư�
 - Cuối mỗi buổi: tóm tắt đã làm gì, file nằm ở đâu, việc tiếp theo, câu hỏi còn mở, và cập nhật mục "Nhật ký" ở cuối file này.
 
 ## Các file trong thư mục
-- `index.html`: app bản mẫu đã chạy tốt (làm trong claude.ai). Toàn bộ dữ liệu bài học đang nằm luôn trong file này (biến `DATA`).
-- `lessons.json`: dữ liệu bài học riêng (Chủ đề 0–2, 24 tình huống, 72 câu).
+- `index.html`: toàn bộ app (HTML + JS thuần). Dữ liệu bài học đọc từ `lessons.json` khi mở app.
+- `lessons.json`: dữ liệu bài học (hiện có Chủ đề 0–2, 24 tình huống, 72 câu; kế hoạch tổng cộng 55 chủ đề, đánh số 0–54).
+- `audio/zh/`, `audio/vi/`: mp3 từng câu, tạo bằng `tools/make_audio.py`.
 - Tài liệu thiết kế gốc và file nội dung bài học (file .md của mình): đọc khi cần chi tiết.
 
 ## App hiện có gì
+- Âm thanh: phát file mp3 (không dùng giọng đọc của máy). Màn Học/Ôn tập dùng thẻ audio `clip`; tab Nghe dùng một thẻ audio `player` phát nối tiếp cả tiếng Việt, tiếng tích + khoảng lặng (file WAV tạo trong bộ nhớ) và tiếng Trung.
 - 3 tab dưới cùng: 📚 Học | 🎧 Nghe | 📊 Tiến độ.
 - Học: danh sách chủ đề, chuyển Tách câu (mảnh 1A, 1B) / Ghép câu (mức 2), vòng học 4 bước (① Nghe 1.0x/0.75x + ẩn/hiện Pinyin, Hán tự → ② Nhại: giữ mic ghi âm rồi phát giọng mẫu → giọng mình → ③ Ghép mảnh Pinyin → ④ Nhớ: đếm 3 giây rồi tự chấm), Ôn tập, Level 3 Mix tổng hợp (20 câu ngẫu nhiên, mở ở bước ④, có màn tổng kết), khung nhắc nhở trên trang chủ.
 - Nghe (nghe thụ động khi đi tàu, đi bus): tiếng Việt → khoảng lặng 3/5/7 giây có tiếng tích → tiếng Trung lần 1 (1.0x) → nghỉ 1,5 giây → lần 2 (1.0x hoặc 0.75x). Nguồn câu: tất cả / Smart Mix / từng chủ đề. Hẹn giờ tắt 15/30 phút. Có Media Session (điều khiển bằng tai nghe).
@@ -40,10 +42,12 @@ App học tiếng Trung giao tiếp (Phổ thông Đại Lục, zh-CN) cho ngư�
 4. **Đổi giọng đọc sang mp3**: thay `speechSynthesis` bằng file mp3, tốc độ chậm dùng `audio.playbackRate = 0.75`. Riêng tab Nghe phát bằng một thẻ audio để tiếp tục phát khi khoá màn hình và bấm được Play/Next trên tai nghe.
 5. **Biến thành PWA** (web app cài lên màn hình chính): `manifest.json`, icon, service worker lưu sẵn mọi file (kể cả mp3) để chạy 100% offline.
 6. **Đưa lên GitHub Pages**, rồi hướng dẫn mình cài lên điện thoại (Safari → Chia sẻ → Thêm vào MH chính) và kiểm tra: mic ghi âm, nghe khi khoá màn hình, chạy khi tắt mạng.
-7. Sau đó: ảnh minh hoạ .webp cho từng tình huống, nội dung chủ đề 3–50, thông báo nhắc học (bàn cách làm trước khi code).
+7. Sau đó: ảnh minh hoạ .webp cho từng tình huống, nội dung chủ đề 3–54 (tổng 55 chủ đề), thông báo nhắc học (bàn cách làm trước khi code).
 
 ## Nhật ký
 - 21/11/2026: Xong bản mẫu một file HTML trên claude.ai (đủ tính năng trong tài liệu thiết kế). Chuẩn bị chuyển sang Claude Code.
 - 21/11/2026: Xong bước 1. Repo công khai https://github.com/kristinevo993/Shuo-ba (chữ S hoa; nhánh `main`). Git tác giả `kristinevo993 <kristinevo993@users.noreply.github.com>`. Đẩy code bằng Personal Access Token lưu trong Keychain của Mac, **hết hạn ~21/11/2027** (khi đó tạo token mới ở github.com/settings/tokens).
 - 21/11/2026: Xong bước 2. `index.html` đọc `lessons.json` bằng `fetch` khi mở app (biến `DATA` và bảng `byId` được tạo sau khi tải xong). Thử ở máy: `cd ~/Documents/shuo-ba && python3 -m http.server 8000` rồi mở http://localhost:8000 (bấm đúp mở file sẽ không chạy).
 - 21/11/2026: Xong bước 3. `tools/make_audio.py` (edge-tts 7.3.1) tạo 144 mp3 (72 `audio/zh/`, 72 `audio/vi/`, tổng 2,8 MB). Chạy: `python3 tools/make_audio.py` (cần mạng; bỏ qua file đã có; muốn tạo lại câu nào thì xoá mp3 của câu đó). Chữ Trung nối liền các mảnh, chữ Việt nối bằng dấu cách. Cần nghe kiểm tra `audio/zh/t2s1_*.mp3` (số "8825" có thể bị đọc thành "tám nghìn…" thay vì từng số).
+- 21/11/2026: Bạn nghe thử mp3: giọng và tốc độ ổn; câu "8825" đọc thành số đầy đủ, chấp nhận. Kế hoạch tổng 55 chủ đề.
+- 21/11/2026: Xong bước 4. Bỏ `speechSynthesis`, `tickSound`, âm thanh im lặng chạy nền và giữ màn hình sáng. Đã thử bằng Chrome: phát mp3 1.0x/0.75x, vòng phát tab Nghe, Next/Tạm dừng/Phát lại, tự Tạm dừng khi máy dừng phát. Chưa thử trên iPhone (làm ở bước 6).

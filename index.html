@@ -171,24 +171,25 @@ function allSentences(){ return DATA.topics.flatMap(t=>[...sentencesOf(t,"split"
 let byId = {};   // bảng tra câu theo mã, tạo sau khi đọc xong lessons.json
 const zhText = d=>d.zh.map(x=>x.t).join("");
 
-/* ---------- âm thanh (tạm dùng giọng đọc của máy) ---------- */
-let zhVoice=null, viVoice=null, speaking=false;
-function pickVoice(){
-  const vs = speechSynthesis.getVoices();
-  viVoice = vs.find(v=>/^vi/i.test(v.lang)) || null;
-  zhVoice = vs.find(v=>/zh[-_]CN/i.test(v.lang) && /Xiaoxiao|Tingting|Google/i.test(v.name)) || vs.find(v=>/zh[-_]CN/i.test(v.lang)) || vs.find(v=>/^zh/i.test(v.lang)) || null;
-}
-if("speechSynthesis" in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-function speak(text, rate=1, lang="zh-CN"){
+/* ---------- âm thanh: file mp3 trong audio/zh và audio/vi ---------- */
+const audioURL = (id, lang="zh") => `audio/${lang}/${id}.mp3`;
+// Phát một file trên thẻ audio el; trả về true khi phát hết, false nếu lỗi.
+function playOn(el, src, rate=1){
   return new Promise(res=>{
-    if(!("speechSynthesis" in window)){ toast("Máy không hỗ trợ đọc giọng"); return res(); }
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang=lang; u.rate = rate; const v = lang==="zh-CN"?zhVoice:viVoice; if(v) u.voice=v;
-    u.onend=u.onerror=()=>{speaking=false;res()};
-    speaking=true; speechSynthesis.speak(u);
+    el.onended=()=>res(true);
+    el.onerror=()=>{ el.onerror=null; res(false); };
+    el.src=src; el.defaultPlaybackRate=rate; el.playbackRate=rate;
+    const p=el.play(); if(p) p.catch(()=>res(false));
   });
 }
+// Màn Học / Ôn tập: một thẻ audio riêng
+const clip = new Audio(); clip.preload="auto";
+async function say(sent, rate=1){
+  const ok = await playOn(clip, audioURL(sent.id), rate);
+  if(!ok && clip.error) toast("Không tải được âm thanh của câu này");
+  return ok;
+}
+function stopClip(){ try{ clip.pause(); }catch(e){} }
 
 /* ---------- trạng thái màn hình ---------- */
 let S = {screen:"home"};
@@ -276,7 +277,7 @@ function renderLesson(){
     <div id="stepBody"></div>
   </main>
   <div class="nav"><div class="in"><button class="prev" id="prev">‹</button><button class="next" id="next">${S.step<4?"Bước tiếp →":(S.idx<S.list.length-1?"Câu tiếp theo →":"Hoàn thành 🎉")}</button></div></div>`;
-  document.getElementById("back").onclick=()=>{speechSynthesis.cancel();S={screen:"home"};render()};
+  document.getElementById("back").onclick=()=>{stopClip();S={screen:"home"};render()};
   app.querySelectorAll("#modeSeg button").forEach(b=>b.onclick=()=>{prefs.mode=b.dataset.v;store.set("prefs",prefs);
     const sit=sent.sitNo; rebuildList(); S.idx=Math.max(0,S.list.findIndex(x=>x.sitNo===sit)); S.step=1; render();});
   app.querySelectorAll(".steps button").forEach(b=>b.onclick=()=>{S.step=+b.dataset.s;render()});
@@ -314,9 +315,8 @@ function stepListen(body, sent){
   </div>
   <p class="muted" style="font-size:12px;text-align:center;margin-top:10px">Chạm vào một cụm màu để thấy nghĩa tương ứng ở cả 3 dòng</p>`;
   bindChunkTaps(body);
-  const t=zhText(d);
-  body.querySelector("#p1").onclick=()=>speak(t,1);
-  body.querySelector("#p2").onclick=()=>speak(t,.75);
+  body.querySelector("#p1").onclick=()=>say(sent,1);
+  body.querySelector("#p2").onclick=()=>say(sent,.75);
   body.querySelectorAll("#showSeg button").forEach(b=>b.onclick=()=>{prefs.show=b.dataset.v;store.set("prefs",prefs);render()});
 }
 
@@ -335,10 +335,9 @@ function stepShadow(body, sent){
     <div id="micNote"></div>
   </div>`;
   bindChunkTaps(body);
-  const t=zhText(d);
-  body.querySelector("#p1").onclick=()=>speak(t,1);
+  body.querySelector("#p1").onclick=()=>say(sent,1);
   const mic=body.querySelector("#mic"), txt=body.querySelector("#micTxt");
-  const compare=async()=>{ if(!recURL) return; txt.textContent="Giọng bản xứ…"; await speak(t,1); txt.textContent="Giọng của bạn…"; const a=new Audio(recURL); a.onended=()=>txt.textContent="Giữ để nói lại"; a.play().catch(()=>{}); };
+  const compare=async()=>{ if(!recURL) return; txt.textContent="Giọng bản xứ…"; await say(sent,1); txt.textContent="Giọng của bạn…"; const a=new Audio(recURL); a.onended=()=>txt.textContent="Giữ để nói lại"; a.play().catch(()=>{}); };
   body.querySelector("#cmp").onclick=compare;
   const start=async(e)=>{
     e.preventDefault();
@@ -386,11 +385,11 @@ function stepBuild(body, sent){
   const check=()=>{
     if(ans.length<pieces.length) return;
     const ok = ans.every((p,k)=>p.t===pieces[k].t);
-    if(ok){ A.classList.add("ok"); body.querySelector("#res").innerHTML=`<div class="note" style="background:var(--c2)">✅ Chuẩn rồi! Nghe lại và đọc to theo nhé.</div>`; speak(zhText(sent.data),1); }
+    if(ok){ A.classList.add("ok"); body.querySelector("#res").innerHTML=`<div class="note" style="background:var(--c2)">✅ Chuẩn rồi! Nghe lại và đọc to theo nhé.</div>`; say(sent,1); }
     else { A.classList.add("bad"); const k=ans.findIndex((p,k)=>p.t!==pieces[k].t); A.children[k]?.classList.add("wrong"); body.querySelector("#res").innerHTML=`<div class="note" style="background:var(--c6)">Chưa đúng ở mảnh viền đỏ – chạm vào mảnh đó để gỡ ra và thử lại.</div>`; }
   };
   body.querySelector("#reset").onclick=()=>{ans=[];body.querySelector("#res").innerHTML="";draw()};
-  body.querySelector("#hint").onclick=()=>speak(zhText(sent.data),.75);
+  body.querySelector("#hint").onclick=()=>say(sent,.75);
   draw();
 }
 
@@ -417,9 +416,9 @@ function stepRecall(body, sent, onRated){
       ${srs[sent.id]&&phase==="shown"?`<p class="muted" style="font-size:12px;text-align:center;margin:10px 0 0">Đã lưu: ${{bad:"Quên sạch",mid:"Hơi vấp",ok:"Nói mượt"}[srs[sent.id].r]}</p>`:""}
     </div>`;
     bindChunkTaps(body);
-    if(phase==="ready") body.querySelector("#show").onclick=()=>{draw("shown"); speak(zhText(d),1)};
+    if(phase==="ready") body.querySelector("#show").onclick=()=>{draw("shown"); say(sent,1)};
     if(phase==="shown"){
-      body.querySelector("#again").onclick=()=>speak(zhText(d),1);
+      body.querySelector("#again").onclick=()=>say(sent,1);
       body.querySelectorAll(".rate button").forEach(b=>b.onclick=()=>{rateCard(sent.id,b.dataset.r); if(S.tally) S.tally[b.dataset.r]++; if(onRated) onRated(); else {toast("Đã lưu ✓"); nextSentence();}});
     }
   };
@@ -438,7 +437,7 @@ function renderReview(){
   }
   const sent = byId[S.queue[S.idx]];
   app.innerHTML=`<div class="top"><button class="iconbtn" id="back">←</button><div style="flex:1"><h1 style="font-size:16px">Ôn tập</h1><div class="sub">${S.idx+1}/${S.queue.length} · ${esc(sent.topic.title.split("(")[0].trim())}</div></div></div><main id="rb"></main>`;
-  document.getElementById("back").onclick=()=>{speechSynthesis.cancel();S={screen:"home"};render()};
+  document.getElementById("back").onclick=()=>{stopClip();S={screen:"home"};render()};
   stepRecall(document.getElementById("rb"), sent, ()=>{S.idx++;render()});
 }
 
@@ -515,16 +514,27 @@ function buildCommuteList(){
   if(C.source==="smart") pool=pool.filter(s=>srs[s.id] && srs[s.id].r!=="ok");
   return shuffle(pool);
 }
-let actx=null;
-function tickSound(){ try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); const o=actx.createOscillator(), g=actx.createGain();
-  o.frequency.value=880; g.gain.setValueAtTime(.12,actx.currentTime); g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+.12);
-  o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime+.13);}catch(e){} }
-// âm thanh im lặng chạy nền để tai nghe Bluetooth điều khiển được
-let silent=null;
-function silentAudio(){ if(silent) return silent;
-  const sr=8000,n=sr, buf=new ArrayBuffer(44+n*2), v=new DataView(buf); const w=(o,s)=>[...s].forEach((c,i)=>v.setUint8(o+i,c.charCodeAt(0)));
-  w(0,"RIFF");v.setUint32(4,36+n*2,true);w(8,"WAVEfmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,"data");v.setUint32(40,n*2,true);
-  silent=new Audio(URL.createObjectURL(new Blob([buf],{type:"audio/wav"}))); silent.loop=true; return silent; }
+/* Tab Nghe phát MỌI THỨ (tiếng Việt, tiếng tích + khoảng lặng, tiếng Trung) nối tiếp trên MỘT thẻ audio,
+   để iPhone vẫn phát khi khoá màn hình và tai nghe bấm Play/Next được. */
+const player = new Audio(); player.preload="auto";
+let ignorePauseUntil=0;
+function stopPlayer(){ ignorePauseUntil=Date.now()+500; try{ player.pause(); }catch(e){} }
+// máy tự dừng (rút tai nghe, có cuộc gọi…) → chuyển app sang Tạm dừng
+player.addEventListener("pause",()=>{ if(C.playing && !player.ended && Date.now()>ignorePauseUntil) pauseCommute(); });
+
+// tạo file WAV trong bộ nhớ: tiếng tích (nếu có) rồi im lặng cho đủ số giây
+const wavCache={};
+function wavClip(sec, tick){
+  const key=sec+(tick?"t":""); if(wavCache[key]) return wavCache[key];
+  const sr=22050, n=Math.round(sr*sec), buf=new ArrayBuffer(44+n*2), v=new DataView(buf);
+  const w=(o,str)=>[...str].forEach((c,i)=>v.setUint8(o+i,c.charCodeAt(0)));
+  w(0,"RIFF");v.setUint32(4,36+n*2,true);w(8,"WAVEfmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,"data");v.setUint32(40,n*2,true);
+  if(tick){ const len=Math.round(sr*.13);   // 880 Hz, nhỏ dần trong 0,13 giây
+    for(let i=0;i<len;i++){ const t=i/sr; v.setInt16(44+i*2, Math.round(Math.sin(2*Math.PI*880*t)*Math.exp(-t*40)*0.25*32767), true); } }
+  return wavCache[key]=URL.createObjectURL(new Blob([buf],{type:"audio/wav"}));
+}
+
 function setupMediaSession(){
   if(!("mediaSession" in navigator)) return;
   const s=C.list[C.idx];
@@ -535,51 +545,56 @@ function setupMediaSession(){
     navigator.mediaSession.setActionHandler("previoustrack",()=>skip(-1));
   }catch(e){}
 }
-let wakeLock=null;
-async function keepAwake(on){ try{ if(on && "wakeLock" in navigator){wakeLock=await navigator.wakeLock.request("screen")} else if(wakeLock){wakeLock.release();wakeLock=null} }catch(e){} }
 
-const wait=(ms,tok)=>new Promise(r=>{const end=Date.now()+ms; const f=()=>{ if(tok!==C.token||Date.now()>=end) r(); else setTimeout(f,100)}; f();});
+// phát một đoạn; trả về false nếu đã bị dừng/chuyển câu (token đổi) hoặc lỗi
+async function step(tok, src, rate=1){
+  if(tok!==C.token) return false;
+  const ok=await playOn(player, src, rate);
+  if(tok!==C.token) return false;
+  if(!ok){ pauseCommute(); toast("Không phát được âm thanh – thử bấm ▶ lại"); return false; }
+  return true;
+}
 async function loop(tok){
   while(C.playing && tok===C.token){
     if(C.sleepEnd && Date.now()>=C.sleepEnd){ pauseCommute(); C.sleepEnd=0; toast("⏱ Hết giờ hẹn – nghỉ thôi!"); return; }
     const s=C.list[C.idx]; if(!s){ pauseCommute(); return; }
     setupMediaSession(); C.showPy=false;
     C.phase="🇻🇳 Tiếng Việt"; paintCommute();
-    if(viVoice) await speak(viText(s),1,"vi-VN"); else await wait(1800,tok);
-    if(tok!==C.token) return;
-    C.phase="🤫 Tự nhẩm trong đầu"; tickSound();
-    for(let k=C.gap;k>0;k--){ C.cd=k; paintCommute(); await wait(1000,tok); if(tok!==C.token) return; }
+    if(!await step(tok, audioURL(s.id,"vi"))) return;
+    // tiếng tích + khoảng lặng; đồng hồ đếm ngược đọc theo vị trí đang phát
+    C.phase="🤫 Tự nhẩm trong đầu"; C.cd=C.gap; paintCommute();
+    const cdTimer=setInterval(()=>{ const k=Math.max(1,Math.ceil(C.gap-player.currentTime)); if(k!==C.cd){C.cd=k;paintCommute();} },250);
+    const okGap=await step(tok, wavClip(C.gap,true)); clearInterval(cdTimer);
+    if(!okGap) return;
     C.cd=0; C.showPy=true; C.phase="🇨🇳 Tiếng Trung · lần 1"; paintCommute();
-    await speak(zhText(s.data),1); if(tok!==C.token) return;
-    C.phase="🗣️ Nhại lại"; paintCommute(); await wait(1500,tok); if(tok!==C.token) return;
+    if(!await step(tok, audioURL(s.id))) return;
+    C.phase="🗣️ Nhại lại"; paintCommute();
+    if(!await step(tok, wavClip(1.5))) return;
     C.phase="🇨🇳 Lần 2 · "+(C.speed2===1?"1.0x":"0.75x"); paintCommute();
-    await speak(zhText(s.data),C.speed2); if(tok!==C.token) return;
+    if(!await step(tok, audioURL(s.id), C.speed2)) return;
     dayOf(dayKey()).heard++; store.set("stats",stats);
-    await wait(700,tok); if(tok!==C.token) return;
+    if(!await step(tok, wavClip(.7))) return;
     C.idx++; if(C.idx>=C.list.length){ C.list=shuffle(C.list); C.idx=0; }
   }
 }
 function startCommute(){
+  if(C.playing) return;
   if(!C.list.length){ C.list=buildCommuteList(); C.idx=0; }
   if(!C.list.length){ toast(C.source==="smart"?"Chưa có câu nào bị đánh dấu Quên sạch / Hơi vấp":"Không có câu nào để phát"); return; }
-  if(!viVoice && !C.warnedVi){ C.warnedVi=true; toast("Máy chưa có giọng tiếng Việt – app sẽ hiện chữ thay vì đọc"); }
+  stopClip();
   C.playing=true; C.token++; lastTick=Date.now();
   C.sleepEnd = C.sleep? Date.now()+C.sleep*60000 : 0;
-  try{ silentAudio().play().catch(()=>{}); }catch(e){}
-  keepAwake(true);
   if("mediaSession" in navigator) navigator.mediaSession.playbackState="playing";
-  loop(C.token); paintCommute();
+  loop(C.token); paintCommute();   // loop gọi player.play() ngay trong lần bấm → iPhone cho phép phát
 }
 function pauseCommute(){
-  tickStats(); C.playing=false; C.token++; speechSynthesis.cancel(); C.phase="⏸ Tạm dừng"; C.cd=0;
-  try{ silent && silent.pause(); }catch(e){}
-  keepAwake(false);
+  tickStats(); C.playing=false; C.token++; stopPlayer(); C.phase="⏸ Tạm dừng"; C.cd=0;
   if("mediaSession" in navigator) navigator.mediaSession.playbackState="paused";
   paintCommute();
 }
 function skip(dir){
   if(!C.list.length) return;
-  const was=C.playing; if(was){C.token++;speechSynthesis.cancel();}
+  const was=C.playing; if(was){ C.token++; stopPlayer(); }
   C.idx=(C.idx+dir+C.list.length)%C.list.length; C.showPy=false; C.phase=was?"":"⏸ Tạm dừng";
   if(was){ C.playing=true; loop(C.token); }
   paintCommute();
