@@ -44,3 +44,4 @@ App học tiếng Trung giao tiếp (Phổ thông Đại Lục, zh-CN) cho ngư�
 
 ## Nhật ký
 - 21/11/2026: Xong bản mẫu một file HTML trên claude.ai (đủ tính năng trong tài liệu thiết kế). Chuẩn bị chuyển sang Claude Code.
+- 21/11/2026: Xong bước 1. Repo công khai https://github.com/kristinevo993/shuo-ba (nhánh `main`). Git tác giả `kristinevo993 <kristinevo993@users.noreply.github.com>`. Đẩy code bằng Personal Access Token lưu trong Keychain của Mac, **hết hạn ~21/11/2027** (khi đó tạo token mới ở github.com/settings/tokens).
