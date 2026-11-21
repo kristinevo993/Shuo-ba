@@ -499,7 +499,7 @@ function addTabs(){
 }
 
 /* ================= CHẾ ĐỘ ĐI TÀU ================= */
-let C = store.get("commute",{source:"all", level:"both", gap:5, speed2:1, sleep:0});
+let C = store.get("commute",{source:"all", level:"both", gap:3, speed2:1, sleep:0});
 Object.assign(C,{playing:false, token:0, list:[], idx:0, phase:"", sleepEnd:0, ui:null, showPy:false, cd:0});
 const saveC=()=>store.set("commute",{source:C.source,level:C.level,gap:C.gap,speed2:C.speed2,sleep:C.sleep});
 const viText = s=>s.data.vi.map(x=>x.t).join(" ");

@@ -20,7 +20,7 @@ App học tiếng Trung giao tiếp (Phổ thông Đại Lục, zh-CN) cho ngư�
 - Âm thanh: phát file mp3 (không dùng giọng đọc của máy). Màn Học/Ôn tập dùng thẻ audio `clip`; tab Nghe dùng một thẻ audio `player` phát nối tiếp cả tiếng Việt, tiếng tích + khoảng lặng (file WAV tạo trong bộ nhớ) và tiếng Trung.
 - 3 tab dưới cùng: 📚 Học | 🎧 Nghe | 📊 Tiến độ.
 - Học: danh sách chủ đề, chuyển Tách câu (mảnh 1A, 1B) / Ghép câu (mức 2), vòng học 4 bước (① Nghe 1.0x/0.75x + ẩn/hiện Pinyin, Hán tự → ② Nhại: giữ mic ghi âm rồi phát giọng mẫu → giọng mình → ③ Ghép mảnh Pinyin → ④ Nhớ: đếm 3 giây rồi tự chấm), Ôn tập, Level 3 Mix tổng hợp (20 câu ngẫu nhiên, mở ở bước ④, có màn tổng kết), khung nhắc nhở trên trang chủ.
-- Nghe (nghe thụ động khi đi tàu, đi bus): tiếng Việt → khoảng lặng 3/5/7 giây có tiếng tích → tiếng Trung lần 1 (1.0x) → nghỉ 1,5 giây → lần 2 (1.0x hoặc 0.75x). Nguồn câu: tất cả / Smart Mix / từng chủ đề. Hẹn giờ tắt 15/30 phút. Có Media Session (điều khiển bằng tai nghe).
+- Nghe (nghe thụ động khi đi tàu, đi bus): tiếng Việt → khoảng lặng có tiếng tích (mặc định 3 giây, chọn được 3/5/7) → tiếng Trung lần 1 (1.0x) → nghỉ 1,5 giây → lần 2 (1.0x hoặc 0.75x). Nguồn câu: tất cả / Smart Mix / từng chủ đề. Hẹn giờ tắt 15/30 phút. Có Media Session (điều khiển bằng tai nghe).
 - Tiến độ: vòng mục tiêu hôm nay, biểu đồ cột 14 ngày (học #5B8FC9, nghe #E39B6A), chuỗi 🔥, mục tiêu 10/20/30/45 phút, 9 huy hiệu.
 - Giao diện: nền #FAF9F6, thẻ #FFFFFF viền #EBEAE4, chữ #2D3136, 6 màu pastel cho cụm [1]–[6]: #FDF2D0, #E3F1E5, #E3EEF8, #FBE8DF, #EFE8F8, #F9E4EA. Không dùng màu neon.
 
