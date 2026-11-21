@@ -14,6 +14,7 @@ App học tiếng Trung giao tiếp (Phổ thông Đại Lục, zh-CN) cho ngư�
 - `index.html`: toàn bộ app (HTML + JS thuần). Dữ liệu bài học đọc từ `lessons.json` khi mở app.
 - `lessons.json`: dữ liệu bài học (hiện có Chủ đề 0–2, 24 tình huống, 72 câu; kế hoạch tổng cộng 55 chủ đề, đánh số 0–54).
 - `audio/zh/`, `audio/vi/`: mp3 từng câu, tạo bằng `tools/make_audio.py`.
+- `manifest.json`, `icons/` (vẽ ở `tools/icon.html`, xuất PNG bằng `bash tools/make_icons.sh`), `sw.js`: phần PWA / offline.
 - Tài liệu thiết kế gốc và file nội dung bài học (file .md của mình): đọc khi cần chi tiết.
 
 ## App hiện có gì
@@ -51,3 +52,5 @@ App học tiếng Trung giao tiếp (Phổ thông Đại Lục, zh-CN) cho ngư�
 - 21/11/2026: Xong bước 3. `tools/make_audio.py` (edge-tts 7.3.1) tạo 144 mp3 (72 `audio/zh/`, 72 `audio/vi/`, tổng 2,8 MB). Chạy: `python3 tools/make_audio.py` (cần mạng; bỏ qua file đã có; muốn tạo lại câu nào thì xoá mp3 của câu đó). Chữ Trung nối liền các mảnh, chữ Việt nối bằng dấu cách. Cần nghe kiểm tra `audio/zh/t2s1_*.mp3` (số "8825" có thể bị đọc thành "tám nghìn…" thay vì từng số).
 - 21/11/2026: Bạn nghe thử mp3: giọng và tốc độ ổn; câu "8825" đọc thành số đầy đủ, chấp nhận. Kế hoạch tổng 55 chủ đề.
 - 21/11/2026: Xong bước 4. Bỏ `speechSynthesis`, `tickSound`, âm thanh im lặng chạy nền và giữ màn hình sáng. Đã thử bằng Chrome: phát mp3 1.0x/0.75x, vòng phát tab Nghe, Next/Tạm dừng/Phát lại, tự Tạm dừng khi máy dừng phát. Chưa thử trên iPhone (làm ở bước 6).
+- 21/11/2026: Tab Nghe: khoảng lặng mặc định đổi 5 → 3 giây (vẫn chọn được 3/5/7).
+- 21/11/2026: Xong bước 5 (PWA). `sw.js`: trang + dữ liệu dùng bản đã lưu và cập nhật ở nền (sửa code/thêm bài hiện ra ở lần mở app thứ hai); mp3 lấy từ bộ nhớ, có xử lý Range cho iPhone; mỗi lần mở app trang gửi "sync" để tải mp3 còn thiếu theo `lessons.json`. Đã thử bằng Chrome: lưu đủ 144 mp3, tắt máy chủ vẫn mở app và phát được. Chưa thử trên iPhone.
