@@ -239,14 +239,15 @@ function renderHome(){
     </div>
     <button class="review-cta" id="goReview"><span class="big">🔁</span><span><b>${due? "Ôn tập ngay ("+due+" câu)":"Chưa có câu cần ôn"}</b><small class="muted">Nhìn ảnh + tiếng Việt → tự nói ra miệng</small></span></button>
     ${reminderBanner()}
-    <button class="review-cta" id="goMix" style="background:var(--c4);margin-top:12px"><span class="big">🎲</span><span><b>Level 3 · Mix tổng hợp</b><small class="muted">20 câu ngẫu nhiên từ ${learnedTopics().length?learnedTopics().length+" chủ đề đã học":"tất cả chủ đề"} – đổi tình huống liên tục</small></span></button>
+    <button class="review-cta" id="goMix" style="background:var(--c4);margin-top:12px"><span class="big">🎲</span><span><b>Level 3 · Mix tổng hợp</b><small class="muted">${learned?`20 câu ngẫu nhiên từ ${learned} câu đã học – đổi tình huống liên tục`:"Mở sau khi bạn học xong vài câu"}</small></span></button>
     <div class="section-t">Phần 1 · Sinh hoạt & Di chuyển</div>
     ${DATA.topics.map(t=>{
       const [emo,col]=TOPIC_STYLE[t.id]||["💬","--c3"];
-      const ids=[...sentencesOf(t,"split"),...sentencesOf(t,"full")].map(s=>s.id);
+      const ids=topicIds(t), st=topicState(t);
       const pct=Math.round(ids.filter(i=>srs[i]).length/ids.length*100);
-      return `<button class="topic" data-t="${t.id}"><span class="emo" style="background:var(${col})">${emo}</span>
-        <span class="tt"><b>${t.id}. ${esc(t.title.split("(")[0].trim())}</b><small>${t.situations.length} tình huống · ${pct}%</small><div class="bar"><i style="width:${pct}%"></i></div></span><span class="muted">›</span></button>`;
+      const note={done:"✅ Đã xong", review:topicReviewQueue(t).length?`🔁 Còn ôn cuối bài (${topicReviewQueue(t).length} câu)`:"🎉 Học hết rồi – bấm để hoàn thành", open:pct?`Đang học · ${pct}%`:`${t.situations.length} tình huống`, locked:"🔒 Xong chủ đề trước để mở"}[st];
+      return `<button class="topic${st==="locked"?" lock":""}" data-t="${t.id}"><span class="emo" style="background:${st==="locked"?"#F0EFEA":`var(${col})`}">${st==="locked"?"🔒":emo}</span>
+        <span class="tt"><b>${t.id}. ${esc(t.title.split("(")[0].trim())}</b><small>${note}</small><div class="bar"><i style="width:${pct}%"></i></div></span><span class="muted">›</span></button>`;
     }).join("")}
     ${UPCOMING.map(u=>`<div class="topic lock"><span class="emo" style="background:#F0EFEA">🔒</span><span class="tt"><b>${u}</b><small>Sắp có</small></span></div>`).join("")}
   </main>`;
@@ -256,15 +257,47 @@ function renderHome(){
 }
 
 /* ================= BÀI HỌC ================= */
-function openTopic(tid){
-  const topic = DATA.topics.find(t=>t.id===tid);
-  S = {screen:"lesson", topic, idx:0, step:1};
-  rebuildList(); render();
+// Tiến độ từng chủ đề (khoá "topics"): {id chủ đề: {done:true} hoặc {passed:[mã câu đã qua ở phần ôn cuối bài]}}
+let topicProg = store.get("topics",{});
+const tProg = tid => topicProg[tid] || {};   // chỉ đọc; ghi qua addPassed / finishTopic
+const saveTopics = ()=>store.set("topics",topicProg);
+const topicIds = t => [...sentencesOf(t,"split"),...sentencesOf(t,"full")].map(s=>s.id);
+const firstNew = list => list.findIndex(s=>!srs[s.id]);   // câu đầu tiên chưa tự chấm
+function topicState(t){
+  if(tProg(t.id).done) return "done";
+  const ids=topicIds(t);
+  if(ids.every(i=>srs[i])) return "review";               // học hết rồi, còn ôn cuối bài
+  const i=DATA.topics.indexOf(t);
+  if(i===0 || topicProg[DATA.topics[i-1].id]?.done || ids.some(x=>srs[x])) return "open";
+  return "locked";
 }
-function learnedTopics(){ return DATA.topics.filter(t=>[...sentencesOf(t,"split"),...sentencesOf(t,"full")].some(s=>srs[s.id])); }
+// câu cần ôn cuối bài: Quên sạch / Hơi vấp, chưa qua
+function topicReviewQueue(t){ const passed=tProg(t.id).passed||[]; return topicIds(t).filter(i=>srs[i] && srs[i].r!=="ok" && !passed.includes(i)); }
+function addPassed(t,id){ const p=topicProg[t.id]||(topicProg[t.id]={}); p.passed=[...(p.passed||[]),id]; saveTopics(); }
+function finishTopic(t){ topicProg[t.id]={done:true}; saveTopics(); }
+
+function openTopic(tid){
+  const topic = DATA.topics.find(t=>t.id===tid), st=topicState(topic);
+  if(st==="locked"){ const prev=DATA.topics[DATA.topics.indexOf(topic)-1]; toast(`🔒 Học xong & ôn chủ đề ${prev.id} trước nhé`); return; }
+  if(st==="review") return openTopicReview(topic);
+  S = {screen:"lesson", topic, idx:0, step:1};
+  if(st==="open"){   // tiếp tục ở câu chưa học: Tách câu trước, rồi Ghép câu
+    const iSplit=firstNew(sentencesOf(topic,"split"));
+    prefs.mode = iSplit>=0 ? "split" : "full"; store.set("prefs",prefs);
+    S.list = sentencesOf(topic, prefs.mode); S.idx = Math.max(0, firstNew(S.list));
+    if(S.idx>0) toast(`Học tiếp từ câu ${S.idx+1}/${S.list.length}`);
+    render(); return;
+  }
+  rebuildList(); render();   // chủ đề đã xong: học lại tự do từ đầu
+}
+function openTopicReview(t){
+  const q=shuffle(topicReviewQueue(t));
+  if(!q.length){ finishTopic(t); S={screen:"topicdone", topic:t}; render(); return; }
+  S={screen:"review", topic:t, queue:q, idx:0}; render();
+}
 function openMix(){
-  const src = learnedTopics().length ? learnedTopics() : DATA.topics;
-  const pool = src.flatMap(t=>[...sentencesOf(t,"split"),...sentencesOf(t,"full")]);
+  const pool = allSentences().filter(s=>srs[s.id]);   // chỉ câu đã học
+  if(!pool.length){ toast("Học vài câu (tới bước ④ và tự chấm) rồi mới Mix được nhé"); return; }
   S = {screen:"lesson", mix:true, list:shuffle(pool).slice(0,20), idx:0, step:4, tally:{ok:0,mid:0,bad:0}};
   render();
 }
@@ -284,7 +317,7 @@ function renderLesson(){
     <div class="steps">${STEP_NAMES.map((n,i)=>`<button data-s="${i+1}" class="${S.step===i+1?"on":""}">${n}</button>`).join("")}</div>
     <div id="stepBody"></div>
   </main>
-  <div class="nav"><div class="in"><button class="prev" id="prev">‹</button><button class="next" id="next">${S.step<4?"Bước tiếp →":(S.idx<S.list.length-1?"Câu tiếp theo →":"Hoàn thành 🎉")}</button></div></div>`;
+  <div class="nav"><div class="in"><button class="prev" id="prev">‹</button><button class="next" id="next">${S.step<4?"Bước tiếp →":(S.idx<S.list.length-1?"Câu tiếp theo →":S.mix?"Hoàn thành 🎉":"Tiếp tục →")}</button></div></div>`;
   document.getElementById("back").onclick=()=>{stopClip();S={screen:"home"};render()};
   app.querySelectorAll("#modeSeg button").forEach(b=>b.onclick=()=>{prefs.mode=b.dataset.v;store.set("prefs",prefs);
     const sit=sent.sitNo; rebuildList(); S.idx=Math.max(0,S.list.findIndex(x=>x.sitNo===sit)); S.step=1; render();});
@@ -301,9 +334,19 @@ function renderLesson(){
 }
 function nextSentence(){
   dropRecording();
-  if(S.idx<S.list.length-1){S.idx++;S.step=S.mix?4:1;render()}
-  else if(S.mix){ S={screen:"mixdone", tally:S.tally, n:S.list.length}; render(); }
-  else {toast("Xong chủ đề này rồi! 🎉");S={screen:"home"};render()}
+  if(S.idx<S.list.length-1){S.idx++;S.step=S.mix?4:1;render();return}
+  if(S.mix){ S={screen:"mixdone", tally:S.tally, n:S.list.length}; render(); return; }
+  const t=S.topic, cur=firstNew(S.list);
+  if(cur>=0){ S.idx=cur; S.step=1; toast("Còn câu chưa học – học nốt nhé"); render(); return; }
+  const other = prefs.mode==="split" ? "full" : "split", oList=sentencesOf(t,other), o=firstNew(oList);
+  if(o>=0){
+    prefs.mode=other; store.set("prefs",prefs); S.list=oList; S.idx=o; S.step=1;
+    toast(other==="full" ? "Xong phần Tách câu! Giờ ghép thành câu hoàn chỉnh 🔗" : "Học nốt phần Tách câu nhé");
+    render(); return;
+  }
+  if(topicState(t)==="done"){ toast("Xong chủ đề này rồi! 🎉"); S={screen:"home"}; render(); return; }
+  toast("Học hết chủ đề rồi! Giờ ôn lại câu còn vấp 🔁");
+  openTopicReview(t);
 }
 
 /* ---- Bước 1: Nghe & bóc tách ---- */
@@ -443,12 +486,30 @@ function renderReview(){
     <main><div class="empty"><div class="big">🌿</div><h2>Ôn xong rồi!</h2><p class="muted">Quay lại sau để ôn tiếp các câu đến hạn.</p></div></main>`;
     document.getElementById("back").onclick=()=>{S={screen:"home"};render()}; return;
   }
-  const sent = byId[S.queue[S.idx]];
-  app.innerHTML=`<div class="top"><button class="iconbtn" id="back">←</button><div style="flex:1"><h1 style="font-size:16px">Ôn tập</h1><div class="sub">${S.idx+1}/${S.queue.length} · ${esc(sent.topic.title.split("(")[0].trim())}</div></div></div><main id="rb"></main>`;
+  const sent = byId[S.queue[S.idx]], T=S.topic;
+  app.innerHTML=`<div class="top"><button class="iconbtn" id="back">←</button><div style="flex:1"><h1 style="font-size:16px">${T?"🔁 Ôn cuối chủ đề":"Ôn tập"}</h1><div class="sub">${S.idx+1}/${S.queue.length} · ${esc(sent.topic.title.split("(")[0].trim())}${T?" · câu Quên sạch sẽ quay lại":""}</div></div></div><main id="rb"></main>`;
   document.getElementById("back").onclick=()=>{stopClip();S={screen:"home"};render()};
-  stepRecall(document.getElementById("rb"), sent, ()=>{S.idx++;render()});
+  stepRecall(document.getElementById("rb"), sent, ()=>{
+    if(T){ const id=S.queue[S.idx];
+      if(srs[id].r==="bad") S.queue.push(id);                 // quên sạch → ôn lại cuối hàng
+      else addPassed(T,id);
+      if(S.idx+1>=S.queue.length){ finishTopic(T); S={screen:"topicdone", topic:T}; render(); return; }
+    }
+    S.idx++; render();
+  });
 }
 
+function renderTopicDone(){
+  const t=S.topic, next=DATA.topics[DATA.topics.indexOf(t)+1];
+  app.innerHTML=`<div class="top"><h1>Xong chủ đề 🎉</h1></div>
+  <main><div class="empty"><div class="big">🏅</div><h2 style="margin:8px 0 4px">${esc(t.title.split("(")[0].trim())}</h2>
+    <p class="muted" style="margin:0 0 18px">Đã học và ôn xong cả chủ đề. 太棒了！ Tài bàng le! – Tuyệt vời!</p>
+    ${next?`<p style="font-size:14px">🔓 Đã mở: <b>${next.id}. ${esc(next.title.split("(")[0].trim())}</b></p>`:`<p class="muted" style="font-size:14px">Chủ đề tiếp theo sắp có – trong lúc chờ, thử Mix tổng hợp nhé!</p>`}
+  </div></main>
+  <div class="nav"><div class="in"><button class="prev" id="home">🏠</button><button class="next" id="go">${next?"Học chủ đề tiếp →":"🎲 Mix tổng hợp"}</button></div></div>`;
+  document.getElementById("home").onclick=()=>{S={screen:"home"};render()};
+  document.getElementById("go").onclick=()=> next? openTopic(next.id) : openMix();
+}
 function renderMixDone(){
   const T=S.tally, pct=Math.round(T.ok/Math.max(1,S.n)*100);
   const msg = pct>=70?["🐉","Phản xạ cực nhanh!","说得很好！ Shuō de hěn hǎo! – Nói hay lắm!"]:pct>=40?["💪","Đang lên tay rồi!","加油！ Jiāyóu! – Cố lên!"]:["🌱","Khởi động thôi mà!","慢慢来 Mànmàn lái – Từ từ rồi sẽ được"];
@@ -460,7 +521,7 @@ function renderMixDone(){
   document.getElementById("home").onclick=()=>{S={screen:"home"};render()};
   document.getElementById("again").onclick=openMix;
 }
-function render(){ if(S.screen!=="commute") C.ui=null; ({home:renderHome, lesson:renderLesson, review:renderReview, mixdone:renderMixDone, commute:renderCommute, stats:renderStats})[S.screen](); if(["home","commute","stats"].includes(S.screen)) addTabs(); }
+function render(){ if(S.screen!=="commute") C.ui=null; ({home:renderHome, lesson:renderLesson, review:renderReview, mixdone:renderMixDone, topicdone:renderTopicDone, commute:renderCommute, stats:renderStats})[S.screen](); if(["home","commute","stats"].includes(S.screen)) addTabs(); }
 
 /* ================= ĐẾM PHÚT HỌC / NGHE ================= */
 let stats = store.get("stats",{days:{}, goal:20});

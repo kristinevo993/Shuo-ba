@@ -28,9 +28,11 @@ App học tiếng Trung giao tiếp (Phổ thông Đại Lục, zh-CN) cho ngư�
 ## Quyết định đã chốt (không đổi nếu chưa hỏi mình)
 - Dữ liệu: topics[] → situations[] (id "t{chủ đề}s{tình huống}") → các mức "1A", "1B", "2" → các dòng vi / py / zh. Mỗi dòng là danh sách mảnh {n: số cụm hoặc null, t: chữ}.
 - Mã câu: "{id tình huống}_{mức}", ví dụ t1s1_1A. Đây cũng là tên file mp3.
-- Tiến độ lưu trong localStorage với các khoá: "srs" (ôn tập), "stats" (phút học/nghe theo ngày), "commute" (cài đặt tab Nghe), "prefs". Phải giữ nguyên các khoá này để không mất tiến độ.
+- Tiến độ lưu trong localStorage với các khoá: "srs" (ôn tập), "stats" (phút học/nghe theo ngày), "commute" (cài đặt tab Nghe), "prefs", "topics" (chủ đề đã xong / câu đã qua ở phần ôn cuối bài, thêm ngày 22/11/2026). Phải giữ nguyên các khoá này để không mất tiến độ.
 - Ôn tập: Quên sạch = 5 phút, Hơi vấp = 1 ngày, Nói mượt = 4 ngày. Smart Mix = các câu chấm Quên sạch hoặc Hơi vấp.
 - Phút học chỉ tính khi đang thao tác (trong 90 giây gần nhất) ở màn Học hoặc Ôn tập; phút nghe tính khi tab Nghe đang phát. Một ngày tính vào chuỗi khi tổng từ 5 phút trở lên.
+- Học theo chủ đề: mở chủ đề → tiếp tục ở câu đầu tiên chưa tự chấm; Tách câu (16 mảnh) xong tự sang Ghép câu (8 câu); học hết 24 câu → Ôn cuối chủ đề (câu Quên sạch/Hơi vấp; Quên sạch quay lại cuối hàng tới khi hết) → ✅ xong, mở khoá chủ đề tiếp theo. Chủ đề đã học dở từ trước vẫn để mở. Chủ đề đã xong thì học lại tự do từ đầu.
+- Level 3 Mix tổng hợp: chỉ lấy các câu đã học (đã tự chấm), tối đa 20 câu.
 - Bản ghi âm nhại giọng chỉ giữ trong bộ nhớ tạm, không lưu file. Không chấm phát âm bằng AI.
 
 ## Việc cần làm (Giai đoạn 2: bản thật), làm lần lượt
@@ -55,3 +57,4 @@ App học tiếng Trung giao tiếp (Phổ thông Đại Lục, zh-CN) cho ngư�
 - 21/11/2026: Tab Nghe: khoảng lặng mặc định đổi 5 → 3 giây (vẫn chọn được 3/5/7).
 - 21/11/2026: Xong bước 5 (PWA). `sw.js`: trang + dữ liệu dùng bản đã lưu và cập nhật ở nền (sửa code/thêm bài hiện ra ở lần mở app thứ hai); mp3 lấy từ bộ nhớ, có xử lý Range cho iPhone; mỗi lần mở app trang gửi "sync" để tải mp3 còn thiếu theo `lessons.json`. Đã thử bằng Chrome: lưu đủ 144 mp3, tắt máy chủ vẫn mở app và phát được. Chưa thử trên iPhone.
 - 21/11/2026: Bước 6 (phần máy tính) xong. GitHub Pages bật từ nhánh `main` / root (có `.nojekyll`). App: https://kristinevo993.github.io/Shuo-ba/ — đã thử bằng Chrome: lưu đủ 144 mp3 sau ~11 giây, phát được. Đang chờ thử trên iPhone (cài MH chính, mic, khoá màn hình, tai nghe, chế độ máy bay).
+- 22/11/2026: Thử trên iPhone: mọi thứ khá ổn. Sửa 2 lỗi bạn báo: (1) học dở thoát ra thì lần sau học lại từ đầu → giờ tiếp tục ở câu chưa học, hết chủ đề thì ôn cuối bài, ôn xong mới mở chủ đề sau; (2) Mix lấy cả câu chưa học → giờ chỉ lấy câu đã học. Đã thử toàn bộ luồng bằng Chrome.
